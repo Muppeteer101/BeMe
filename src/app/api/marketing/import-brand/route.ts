@@ -26,10 +26,26 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
     }
 
+    // Normalize the URL — add https:// if missing
+    let normalizedUrl = url.trim();
+    if (!/^https?:\/\//i.test(normalizedUrl)) {
+      normalizedUrl = `https://${normalizedUrl}`;
+    }
+
+    // Validate the URL
+    try {
+      new URL(normalizedUrl);
+    } catch {
+      return NextResponse.json(
+        { error: `Invalid URL: "${url}". Try something like https://yourwebsite.com` },
+        { status: 400 }
+      );
+    }
+
     // Step 1: Fetch the website HTML
     let html = "";
     try {
-      const res = await fetch(url, {
+      const res = await fetch(normalizedUrl, {
         headers: {
           "User-Agent":
             "Mozilla/5.0 (compatible; MarketingMachine/1.0; +https://beme.ai)",
@@ -71,15 +87,15 @@ export async function POST(request: Request) {
     );
 
     const logoCandidates: string[] = [];
-    if (ogImage) logoCandidates.push(resolveUrl(ogImage, url));
+    if (ogImage) logoCandidates.push(resolveUrl(ogImage, normalizedUrl));
     if (logoMatches) {
       for (const match of logoMatches) {
         const srcMatch = match.match(/src=["']([^"']+)["']/i);
-        if (srcMatch) logoCandidates.push(resolveUrl(srcMatch[1], url));
+        if (srcMatch) logoCandidates.push(resolveUrl(srcMatch[1], normalizedUrl));
       }
     }
     if (faviconMatch) {
-      logoCandidates.push(resolveUrl(faviconMatch[1], url));
+      logoCandidates.push(resolveUrl(faviconMatch[1], normalizedUrl));
     }
 
     // Strip HTML tags to get readable text (limited to avoid token explosion)
@@ -94,7 +110,7 @@ export async function POST(request: Request) {
 
     const userPrompt = `Analyze this website and extract a comprehensive brand profile.
 
-WEBSITE URL: ${url}
+WEBSITE URL: ${normalizedUrl}
 PAGE TITLE: ${title}
 OG TITLE: ${ogTitle}
 META DESCRIPTION: ${metaDesc}
