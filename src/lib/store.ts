@@ -10,6 +10,7 @@ export interface BrandProfile {
   name: string;
   tagline: string;
   website: string;
+  logo: string; // URL or base64 data URL
   description: string;
   products: string;
   targetAudience: string;

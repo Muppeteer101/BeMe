@@ -353,16 +353,69 @@ async function callGrok(apiKey: string, system: string, prompt: string, maxToken
 // ---- JSON Extraction ----
 
 export function extractJSON(text: string): string {
-  // Try to find JSON object
-  const objMatch = text.match(/\{[\s\S]*\}/);
-  if (objMatch) return objMatch[0];
-  // Try to find JSON array
-  const arrMatch = text.match(/\[[\s\S]*\]/);
-  if (arrMatch) return arrMatch[0];
+  // Try to find JSON in markdown code blocks first
+  const codeBlockMatch = text.match(/```(?:json)?\s*([\s\S]*?)```/);
+  if (codeBlockMatch) {
+    const inner = codeBlockMatch[1].trim();
+    try {
+      JSON.parse(inner);
+      return inner;
+    } catch {
+      // not valid JSON in code block, continue
+    }
+  }
+
+  // Try to find the outermost balanced JSON object
+  const objStart = text.indexOf("{");
+  if (objStart !== -1) {
+    let depth = 0;
+    let inString = false;
+    let escape = false;
+    for (let i = objStart; i < text.length; i++) {
+      const ch = text[i];
+      if (escape) { escape = false; continue; }
+      if (ch === "\\") { escape = true; continue; }
+      if (ch === '"') { inString = !inString; continue; }
+      if (inString) continue;
+      if (ch === "{") depth++;
+      if (ch === "}") { depth--; if (depth === 0) return text.slice(objStart, i + 1); }
+    }
+  }
+
+  // Try to find the outermost balanced JSON array
+  const arrStart = text.indexOf("[");
+  if (arrStart !== -1) {
+    let depth = 0;
+    let inString = false;
+    let escape = false;
+    for (let i = arrStart; i < text.length; i++) {
+      const ch = text[i];
+      if (escape) { escape = false; continue; }
+      if (ch === "\\") { escape = true; continue; }
+      if (ch === '"') { inString = !inString; continue; }
+      if (inString) continue;
+      if (ch === "[") depth++;
+      if (ch === "]") { depth--; if (depth === 0) return text.slice(arrStart, i + 1); }
+    }
+  }
+
   return text;
 }
 
 export function parseAIResponse<T>(raw: string): T {
   const jsonStr = extractJSON(raw);
-  return JSON.parse(jsonStr);
+  try {
+    return JSON.parse(jsonStr);
+  } catch (e) {
+    // Try cleaning common AI response issues
+    const cleaned = jsonStr
+      .replace(/,\s*}/g, "}")  // trailing commas in objects
+      .replace(/,\s*]/g, "]")  // trailing commas in arrays
+      .replace(/[\x00-\x1f]/g, (m) => m === "\n" || m === "\t" ? m : ""); // control chars
+    try {
+      return JSON.parse(cleaned);
+    } catch {
+      throw new Error(`Failed to parse AI response as JSON. Raw: "${raw.slice(0, 300)}..." Error: ${e instanceof Error ? e.message : String(e)}`);
+    }
+  }
 }

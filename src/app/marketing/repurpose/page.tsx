@@ -81,9 +81,9 @@ export default function RepurposePage() {
       if (!response.ok) {
         setError(data.error || "Repurposing failed");
       } else {
-        setResults(data.results || []);
-        if (data.results && data.results.length > 0) {
-          setActiveTab(data.results[0].platform);
+        setResults(data.pieces || []);
+        if (data.pieces && data.pieces.length > 0) {
+          setActiveTab(data.pieces[0].platform);
         }
       }
     } catch (err) {

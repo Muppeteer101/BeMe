@@ -56,15 +56,7 @@ export default function CreativeRoomPage() {
       const preferenceContext = preferenceStore.getPreferencePrompt(brand.id);
 
       const payload = {
-        brand: {
-          name: brand.name,
-          tagline: brand.tagline,
-          description: brand.description,
-          voice: brand.voice,
-          tone: brand.tone,
-          values: brand.values,
-          targetAudience: brand.targetAudience,
-        },
+        brand,
         provider,
         apiKey,
         context: context || null,
@@ -155,15 +147,7 @@ export default function CreativeRoomPage() {
       const preferenceContext = preferenceStore.getPreferencePrompt(brand.id);
 
       const payload = {
-        brand: {
-          name: brand.name,
-          tagline: brand.tagline,
-          description: brand.description,
-          voice: brand.voice,
-          tone: brand.tone,
-          values: brand.values,
-          targetAudience: brand.targetAudience,
-        },
+        brand,
         provider,
         apiKey,
         concept: {
@@ -200,7 +184,7 @@ export default function CreativeRoomPage() {
       });
 
       // Save content pieces
-      const pieces = data.content.map((c: Record<string, unknown>) => ({
+      const pieces = (data.pieces || []).map((c: Record<string, unknown>) => ({
         setId: contentSet.id,
         brandId: brand.id,
         platform: c.platform,

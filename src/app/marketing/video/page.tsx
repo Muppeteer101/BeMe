@@ -122,7 +122,7 @@ export default function VideoStudioPage() {
 
     setSaveFeedback("Video script saved!");
     setTimeout(() => setSaveFeedback(null), 2500);
-  }, [script, topic, keyMessage, videoType, platform, style, provider]);
+  }, [script, videoType, platform, style]);
 
   const exportScript = useCallback(() => {
     if (!script) return;

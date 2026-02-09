@@ -11,8 +11,6 @@ const NAV_ITEMS = [
   { href: "/marketing/video", label: "Video Studio", icon: "🎬" },
   { href: "/marketing/content", label: "Content Library", icon: "📁" },
   { href: "/marketing/calendar", label: "Calendar", icon: "📅" },
-  { href: "/marketing/campaigns", label: "Campaigns", icon: "🚀" },
-  { href: "/marketing/analytics", label: "Analytics", icon: "📈" },
   { href: "/marketing/repurpose", label: "Repurpose", icon: "♻️" },
   { href: "/marketing/brands", label: "Brands", icon: "🏷️" },
   { href: "/marketing/settings", label: "Settings", icon: "⚙️" },
