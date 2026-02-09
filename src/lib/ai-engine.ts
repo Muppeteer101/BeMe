@@ -184,7 +184,7 @@ ${newsContext ? `CURRENT NEWS & TRENDS TO CONSIDER:\n${newsContext}\n\nFind crea
 
 ${context ? `ADDITIONAL CONTEXT: ${context}` : ""}
 
-Respond with ONLY valid JSON:
+Respond with ONLY raw valid JSON (no markdown, no code blocks, no backticks, no explanation — just the JSON object):
 {
   "concepts": [
     {
@@ -228,7 +228,7 @@ ${sourceContent}
 TARGET PLATFORMS:
 ${platformSpecs}
 
-Respond with ONLY valid JSON:
+Respond with ONLY raw valid JSON (no markdown, no code blocks, no backticks, no explanation — just the JSON object):
 {
   "pieces": [
     {
@@ -353,69 +353,97 @@ async function callGrok(apiKey: string, system: string, prompt: string, maxToken
 // ---- JSON Extraction ----
 
 export function extractJSON(text: string): string {
-  // Try to find JSON in markdown code blocks first
-  const codeBlockMatch = text.match(/```(?:json)?\s*([\s\S]*?)```/);
-  if (codeBlockMatch) {
-    const inner = codeBlockMatch[1].trim();
-    try {
-      JSON.parse(inner);
-      return inner;
-    } catch {
-      // not valid JSON in code block, continue
-    }
+  // Step 1: Strip markdown code block wrappers unconditionally
+  let stripped = text.trim();
+  // Handle ```json ... ``` or ``` ... ```
+  stripped = stripped.replace(/^```(?:json|JSON)?\s*\n?/, "").replace(/\n?\s*```\s*$/, "");
+
+  // Step 2: Try direct parse first (covers clean responses)
+  try {
+    JSON.parse(stripped.trim());
+    return stripped.trim();
+  } catch {
+    // continue to extraction
   }
 
-  // Try to find the outermost balanced JSON object
-  const objStart = text.indexOf("{");
+  // Step 3: Find balanced JSON object
+  const objStart = stripped.indexOf("{");
   if (objStart !== -1) {
     let depth = 0;
     let inString = false;
     let escape = false;
-    for (let i = objStart; i < text.length; i++) {
-      const ch = text[i];
+    for (let i = objStart; i < stripped.length; i++) {
+      const ch = stripped[i];
       if (escape) { escape = false; continue; }
       if (ch === "\\") { escape = true; continue; }
       if (ch === '"') { inString = !inString; continue; }
       if (inString) continue;
       if (ch === "{") depth++;
-      if (ch === "}") { depth--; if (depth === 0) return text.slice(objStart, i + 1); }
+      if (ch === "}") { depth--; if (depth === 0) return stripped.slice(objStart, i + 1); }
     }
   }
 
-  // Try to find the outermost balanced JSON array
-  const arrStart = text.indexOf("[");
+  // Step 4: Find balanced JSON array
+  const arrStart = stripped.indexOf("[");
   if (arrStart !== -1) {
     let depth = 0;
     let inString = false;
     let escape = false;
-    for (let i = arrStart; i < text.length; i++) {
-      const ch = text[i];
+    for (let i = arrStart; i < stripped.length; i++) {
+      const ch = stripped[i];
       if (escape) { escape = false; continue; }
       if (ch === "\\") { escape = true; continue; }
       if (ch === '"') { inString = !inString; continue; }
       if (inString) continue;
       if (ch === "[") depth++;
-      if (ch === "]") { depth--; if (depth === 0) return text.slice(arrStart, i + 1); }
+      if (ch === "]") { depth--; if (depth === 0) return stripped.slice(arrStart, i + 1); }
     }
   }
 
-  return text;
+  return stripped;
 }
 
 export function parseAIResponse<T>(raw: string): T {
   const jsonStr = extractJSON(raw);
+
+  // Attempt 1: direct parse
   try {
     return JSON.parse(jsonStr);
+  } catch {
+    // continue
+  }
+
+  // Attempt 2: clean trailing commas, control chars, and common issues
+  const cleaned = jsonStr
+    .replace(/,\s*}/g, "}")
+    .replace(/,\s*]/g, "]")
+    .replace(/[\x00-\x1f]/g, (m) => m === "\n" || m === "\t" || m === "\r" ? m : "")
+    .replace(/\n\s*\.\.\.\s*\n/g, "\n")  // remove "..." truncation markers
+    .replace(/\/\/[^\n]*/g, "");           // remove // comments
+
+  try {
+    return JSON.parse(cleaned);
+  } catch {
+    // continue
+  }
+
+  // Attempt 3: try to fix truncated JSON by closing open brackets
+  let fixAttempt = cleaned.trim();
+  const openBraces = (fixAttempt.match(/{/g) || []).length;
+  const closeBraces = (fixAttempt.match(/}/g) || []).length;
+  const openBrackets = (fixAttempt.match(/\[/g) || []).length;
+  const closeBrackets = (fixAttempt.match(/]/g) || []).length;
+
+  // Remove trailing comma if present
+  fixAttempt = fixAttempt.replace(/,\s*$/, "");
+
+  // Close any unclosed structures
+  for (let i = 0; i < openBrackets - closeBrackets; i++) fixAttempt += "]";
+  for (let i = 0; i < openBraces - closeBraces; i++) fixAttempt += "}";
+
+  try {
+    return JSON.parse(fixAttempt);
   } catch (e) {
-    // Try cleaning common AI response issues
-    const cleaned = jsonStr
-      .replace(/,\s*}/g, "}")  // trailing commas in objects
-      .replace(/,\s*]/g, "]")  // trailing commas in arrays
-      .replace(/[\x00-\x1f]/g, (m) => m === "\n" || m === "\t" ? m : ""); // control chars
-    try {
-      return JSON.parse(cleaned);
-    } catch {
-      throw new Error(`Failed to parse AI response as JSON. Raw: "${raw.slice(0, 300)}..." Error: ${e instanceof Error ? e.message : String(e)}`);
-    }
+    throw new Error(`Failed to parse AI response as JSON. Error: ${e instanceof Error ? e.message : String(e)}. First 200 chars: "${raw.slice(0, 200)}"`);
   }
 }
