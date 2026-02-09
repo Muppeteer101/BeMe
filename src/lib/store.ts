@@ -518,6 +518,7 @@ export const calendarStore = {
 // ---- Settings Store ----
 
 export type AccentColor = "violet" | "blue" | "emerald" | "rose" | "amber" | "cyan" | "orange";
+export type ThemeMode = "dark" | "light";
 
 export interface AppSettings {
   anthropicKey: string;
@@ -533,6 +534,7 @@ export interface AppSettings {
   businessName: string;
   industry: string;
   accentColor: AccentColor;
+  themeMode: ThemeMode;
 }
 
 export const DEFAULT_SETTINGS: AppSettings = {
@@ -549,6 +551,7 @@ export const DEFAULT_SETTINGS: AppSettings = {
   businessName: "",
   industry: "",
   accentColor: "violet",
+  themeMode: "dark",
 };
 
 // Accent color CSS class mappings

@@ -457,6 +457,34 @@ export function extractJSON(text: string): string {
   return stripped;
 }
 
+export function sanitizeJSONString(raw: string): string {
+  // Replace smart/curly quotes with straight quotes
+  const s = raw
+    .replace(/[\u201C\u201D\u201E\u201F\u2033\u2036]/g, '"')
+    .replace(/[\u2018\u2019\u201A\u201B\u2032\u2035]/g, "'");
+
+  // Fix unescaped newlines/tabs inside JSON string values
+  // Walk character by character and escape raw newlines inside strings
+  const chars: string[] = [];
+  let inStr = false;
+  let esc = false;
+  for (let i = 0; i < s.length; i++) {
+    const ch = s[i];
+    if (esc) { chars.push(ch); esc = false; continue; }
+    if (ch === '\\' && inStr) { chars.push(ch); esc = true; continue; }
+    if (ch === '"') { inStr = !inStr; chars.push(ch); continue; }
+    if (inStr) {
+      if (ch === '\n') { chars.push('\\n'); continue; }
+      if (ch === '\r') { chars.push('\\r'); continue; }
+      if (ch === '\t') { chars.push('\\t'); continue; }
+      // Escape other control chars inside strings
+      if (ch.charCodeAt(0) < 32) { chars.push('\\u' + ch.charCodeAt(0).toString(16).padStart(4, '0')); continue; }
+    }
+    chars.push(ch);
+  }
+  return chars.join('');
+}
+
 export function parseAIResponse<T>(raw: string): T {
   const jsonStr = extractJSON(raw);
 
@@ -467,11 +495,18 @@ export function parseAIResponse<T>(raw: string): T {
     // continue
   }
 
-  // Attempt 2: clean trailing commas, control chars, and common issues
-  const cleaned = jsonStr
+  // Attempt 2: sanitize string contents (fix unescaped newlines, smart quotes, etc.)
+  const sanitized = sanitizeJSONString(jsonStr);
+  try {
+    return JSON.parse(sanitized);
+  } catch {
+    // continue
+  }
+
+  // Attempt 3: clean trailing commas, control chars, comments, and common issues
+  const cleaned = sanitized
     .replace(/,\s*}/g, "}")
     .replace(/,\s*]/g, "]")
-    .replace(/[\x00-\x1f]/g, (m) => m === "\n" || m === "\t" || m === "\r" ? m : "")
     .replace(/\n\s*\.\.\.\s*\n/g, "\n")  // remove "..." truncation markers
     .replace(/\/\/[^\n]*/g, "");           // remove // comments
 
@@ -481,7 +516,7 @@ export function parseAIResponse<T>(raw: string): T {
     // continue
   }
 
-  // Attempt 3: try to fix truncated JSON by closing open brackets
+  // Attempt 4: try to fix truncated JSON by closing open brackets
   let fixAttempt = cleaned.trim();
   const openBraces = (fixAttempt.match(/{/g) || []).length;
   const closeBraces = (fixAttempt.match(/}/g) || []).length;
@@ -497,7 +532,27 @@ export function parseAIResponse<T>(raw: string): T {
 
   try {
     return JSON.parse(fixAttempt);
-  } catch (e) {
-    throw new Error(`Failed to parse AI response as JSON. Error: ${e instanceof Error ? e.message : String(e)}. First 200 chars: "${raw.slice(0, 200)}"`);
+  } catch {
+    // continue
   }
+
+  // Attempt 5: nuclear option — regex-extract just the array/object we need
+  const conceptsMatch = fixAttempt.match(/"concepts"\s*:\s*\[[\s\S]*\]/);
+  if (conceptsMatch) {
+    try {
+      return JSON.parse(`{${conceptsMatch[0]}}`) as T;
+    } catch {
+      // continue
+    }
+  }
+  const piecesMatch = fixAttempt.match(/"pieces"\s*:\s*\[[\s\S]*\]/);
+  if (piecesMatch) {
+    try {
+      return JSON.parse(`{${piecesMatch[0]}}`) as T;
+    } catch {
+      // continue
+    }
+  }
+
+  throw new Error(`The AI returned an invalid response format. Please try again — this occasionally happens. (Parse detail: ${raw.slice(0, 120)}...)`);
 }

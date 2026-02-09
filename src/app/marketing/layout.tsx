@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useState, useEffect } from "react";
-import { brandStore, settingsStore, ACCENT_COLORS, type BrandProfile, type AccentColor } from "@/lib/store";
+import { brandStore, settingsStore, ACCENT_COLORS, type BrandProfile, type AccentColor, type ThemeMode } from "@/lib/store";
 
 const NAV_ITEMS = [
   { href: "/marketing", label: "Dashboard", icon: "📊" },
@@ -26,8 +26,9 @@ export default function MarketingLayout({
   const [activeBrand, setActiveBrand] = useState<BrandProfile | null>(null);
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const [accent, setAccent] = useState<AccentColor>("violet");
+  const [theme, setTheme] = useState<ThemeMode>("dark");
 
-  // Load brands, active brand, and accent color on mount
+  // Load brands, active brand, accent color, and theme on mount
   useEffect(() => {
     const allBrands = brandStore.getAll();
     setBrands(allBrands);
@@ -35,18 +36,22 @@ export default function MarketingLayout({
     setActiveBrand(active);
     const s = settingsStore.get();
     setAccent(s.accentColor || "violet");
+    setTheme(s.themeMode || "dark");
   }, []);
 
-  // Listen for settings changes (poll every 2s for accent color changes)
+  // Listen for settings changes (poll every 2s for accent color / theme changes)
   useEffect(() => {
     const interval = setInterval(() => {
       const s = settingsStore.get();
       if (s.accentColor && s.accentColor !== accent) {
         setAccent(s.accentColor);
       }
+      if (s.themeMode && s.themeMode !== theme) {
+        setTheme(s.themeMode);
+      }
     }, 2000);
     return () => clearInterval(interval);
-  }, [accent]);
+  }, [accent, theme]);
 
   const ac = ACCENT_COLORS[accent];
 
@@ -60,7 +65,7 @@ export default function MarketingLayout({
   };
 
   return (
-    <div className="flex h-screen bg-gray-950">
+    <div className="flex h-screen bg-gray-950" data-theme={theme}>
       {/* Sidebar */}
       <aside className="w-64 bg-gray-900 border-r border-gray-800 flex flex-col overflow-y-auto">
         {/* Logo Section */}
