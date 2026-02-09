@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { BEME_BRAND_BRIEF } from "@/lib/brand-brief";
 
 interface GenerateRequest {
   topic: string;
@@ -11,10 +12,22 @@ interface GenerateRequest {
   apiKey: string;
 }
 
-const SYSTEM_PROMPT = `You are an award-winning marketing agency creative director. You create exceptional, high-converting marketing content that drives engagement and results. You always respond in valid JSON format.`;
+const SYSTEM_PROMPT = `You are the in-house creative director for BeMe — an award-winning AI marketing agency. You know everything about BeMe and create exceptional, high-converting marketing content that drives engagement and results. You always respond in valid JSON format.
+
+${BEME_BRAND_BRIEF}
+
+IMPORTANT RULES:
+- Every piece of content must be on-brand for BeMe
+- Use BeMe's voice: professional yet approachable, empowering, no corporate jargon
+- Speak to BeMe's target audience: self-employed professionals, tradespeople, small business owners
+- Reference BeMe's products, benefits, and USPs naturally where relevant
+- Hashtags should include BeMe-specific tags (#BeMe #AlwaysOnAlwaysYou) alongside topic-relevant ones
+- CTAs should drive to BeMe's website, app download, or free trial where appropriate`;
 
 function buildPrompt(req: GenerateRequest): string {
   return `Create a ${req.contentType} for ${req.channel} about "${req.topic}".
+
+This content is for BeMe (www.justbeme.ai) — the AI-powered virtual assistant for self-employed professionals.
 
 Tone: ${req.tone}
 Framework: ${req.framework}
@@ -23,9 +36,9 @@ ${req.keywords ? `Keywords to include: ${req.keywords}` : ""}
 Respond with ONLY valid JSON in this exact format:
 {
   "headline": "A compelling headline",
-  "body": "The main content body (use \\n for line breaks)",
-  "hashtags": ["#hashtag1", "#hashtag2", "#hashtag3", "#hashtag4", "#hashtag5"],
-  "cta": "A strong call to action",
+  "body": "The main content body (use \\n for line breaks). Make it specific to BeMe and our audience.",
+  "hashtags": ["#BeMe", "#AlwaysOnAlwaysYou", "#hashtag3", "#hashtag4", "#hashtag5"],
+  "cta": "A strong call to action that drives to BeMe",
   "imagePrompt": "A detailed image generation prompt for a visual to accompany this content"
 }`;
 }

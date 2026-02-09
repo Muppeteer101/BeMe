@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { BEME_BRAND_BRIEF } from "@/lib/brand-brief";
 
 interface VideoGenerateRequest {
   topic: string;
@@ -10,10 +11,21 @@ interface VideoGenerateRequest {
   apiKey: string;
 }
 
-const SYSTEM_PROMPT = `You are an award-winning video marketing director who creates viral video scripts. You understand platform-specific best practices for TikTok, Instagram Reels, YouTube, and more. You always respond in valid JSON format.`;
+const SYSTEM_PROMPT = `You are BeMe's in-house video marketing director — award-winning, viral content specialist. You create video scripts that drive downloads, sign-ups, and brand awareness for BeMe. You understand platform-specific best practices for TikTok, Instagram Reels, YouTube, and more. You always respond in valid JSON format.
+
+${BEME_BRAND_BRIEF}
+
+IMPORTANT RULES:
+- Every video must promote or relate to BeMe and its mission
+- Use BeMe's voice: professional yet approachable, empowering, relatable
+- Speak to the self-employed audience's pain points (missed calls, no time off, juggling everything)
+- Show how BeMe solves real problems
+- CTAs should drive app downloads, website visits, or free trials`;
 
 function buildPrompt(req: VideoGenerateRequest): string {
   return `Create a ${req.videoType} video script in "${req.style}" style for ${req.platform} about "${req.topic}".
+
+This video is for BeMe (www.justbeme.ai) — the AI-powered virtual assistant for self-employed professionals.
 
 ${req.keyMessage ? `Key message: ${req.keyMessage}` : ""}
 
@@ -29,7 +41,7 @@ Respond with ONLY valid JSON in this exact format:
       "duration": "5s"
     }
   ],
-  "cta": "Call to action at the end",
+  "cta": "Call to action that drives to BeMe app/website",
   "music": "Music/audio recommendation",
   "totalDuration": "Total estimated duration"
 }
