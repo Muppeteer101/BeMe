@@ -91,9 +91,13 @@ export default function VideoStudioPage() {
   }, [topic, keyMessage, videoType, platform, style, provider]);
 
   const copyToClipboard = useCallback((text: string, label: string) => {
-    navigator.clipboard.writeText(text);
-    setCopyFeedback(`${label} copied!`);
-    setTimeout(() => setCopyFeedback(null), 2000);
+    navigator.clipboard.writeText(text).then(() => {
+      setCopyFeedback(`${label} copied!`);
+      setTimeout(() => setCopyFeedback(null), 2000);
+    }).catch(() => {
+      setCopyFeedback("Copy failed — try selecting text manually");
+      setTimeout(() => setCopyFeedback(null), 3000);
+    });
   }, []);
 
   const handleSave = useCallback(() => {

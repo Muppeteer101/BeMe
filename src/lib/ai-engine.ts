@@ -346,8 +346,12 @@ async function callAnthropic(apiKey: string, system: string, prompt: string, max
       messages: [{ role: "user", content: prompt }],
     }),
   });
-  if (!res.ok) throw new Error(`Anthropic API error: ${res.status} ${await res.text()}`);
+  if (!res.ok) {
+    const errText = await res.text().catch(() => "Unknown error");
+    throw new Error(`Anthropic API error: ${res.status} — ${errText.slice(0, 200)}`);
+  }
   const data = await res.json();
+  if (!data?.content?.[0]?.text) throw new Error("Anthropic returned an empty response. Please try again.");
   return data.content[0].text;
 }
 
@@ -364,8 +368,12 @@ async function callOpenAI(apiKey: string, system: string, prompt: string, maxTok
       max_tokens: maxTokens,
     }),
   });
-  if (!res.ok) throw new Error(`OpenAI API error: ${res.status} ${await res.text()}`);
+  if (!res.ok) {
+    const errText = await res.text().catch(() => "Unknown error");
+    throw new Error(`OpenAI API error: ${res.status} — ${errText.slice(0, 200)}`);
+  }
   const data = await res.json();
+  if (!data?.choices?.[0]?.message?.content) throw new Error("OpenAI returned an empty response. Please try again.");
   return data.choices[0].message.content;
 }
 
@@ -381,8 +389,12 @@ async function callGemini(apiKey: string, system: string, prompt: string, _maxTo
       }),
     },
   );
-  if (!res.ok) throw new Error(`Gemini API error: ${res.status} ${await res.text()}`);
+  if (!res.ok) {
+    const errText = await res.text().catch(() => "Unknown error");
+    throw new Error(`Gemini API error: ${res.status} — ${errText.slice(0, 200)}`);
+  }
   const data = await res.json();
+  if (!data?.candidates?.[0]?.content?.parts?.[0]?.text) throw new Error("Gemini returned an empty response. Please try again.");
   return data.candidates[0].content.parts[0].text;
 }
 
@@ -399,8 +411,12 @@ async function callGrok(apiKey: string, system: string, prompt: string, maxToken
       max_tokens: maxTokens,
     }),
   });
-  if (!res.ok) throw new Error(`Grok API error: ${res.status} ${await res.text()}`);
+  if (!res.ok) {
+    const errText = await res.text().catch(() => "Unknown error");
+    throw new Error(`Grok API error: ${res.status} — ${errText.slice(0, 200)}`);
+  }
   const data = await res.json();
+  if (!data?.choices?.[0]?.message?.content) throw new Error("Grok returned an empty response. Please try again.");
   return data.choices[0].message.content;
 }
 

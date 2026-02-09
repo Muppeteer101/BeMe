@@ -292,7 +292,7 @@ export default function DashboardPage() {
       <div className="bg-gray-900 border border-gray-800 rounded-xl">
         <div className="p-6 border-b border-gray-800 flex justify-between items-center">
           <h2 className="font-semibold text-lg text-white">Recent Content Sets</h2>
-          <Link href="/marketing/sets" className="text-sm text-violet-400 hover:text-violet-300 transition-colors">
+          <Link href="/marketing/content" className="text-sm text-violet-400 hover:text-violet-300 transition-colors">
             View All
           </Link>
         </div>

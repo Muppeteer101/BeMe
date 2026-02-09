@@ -21,6 +21,10 @@ export default function ContentLibraryPage() {
   const [viewMode, setViewMode] = useState<"list" | "sets">("list");
   const [content, setContent] = useState<ContentPiece[]>([]);
   const [activeBrand, setActiveBrand] = useState(brandStore.getActive());
+  const [copyFeedback, setCopyFeedback] = useState<string | null>(null);
+  const [scheduleModal, setScheduleModal] = useState<string | null>(null);
+  const [scheduleDate, setScheduleDate] = useState("");
+  const [scheduleTime, setScheduleTime] = useState("");
 
   useEffect(() => {
     const brand = brandStore.getActive();
@@ -68,7 +72,14 @@ export default function ContentLibraryPage() {
   const handleCopy = useCallback((id: string) => {
     const item = content.find((c) => c.id === id);
     if (item) {
-      navigator.clipboard.writeText(item.headline);
+      const text = `${item.headline}\n\n${item.body}\n\n${(item.hashtags || []).join(" ")}${item.cta ? `\n\n${item.cta}` : ""}`;
+      navigator.clipboard.writeText(text).then(() => {
+        setCopyFeedback("Copied to clipboard!");
+        setTimeout(() => setCopyFeedback(null), 2000);
+      }).catch(() => {
+        setCopyFeedback("Copy failed — try selecting text manually");
+        setTimeout(() => setCopyFeedback(null), 3000);
+      });
     }
   }, [content]);
 
@@ -172,6 +183,13 @@ export default function ContentLibraryPage() {
         </div>
       </div>
 
+      {/* Feedback Toast */}
+      {copyFeedback && (
+        <div className="fixed top-6 right-6 bg-green-600/90 text-white px-4 py-2.5 rounded-lg text-sm font-medium shadow-lg z-50 animate-pulse">
+          {copyFeedback}
+        </div>
+      )}
+
       {/* Content Table */}
       <div className="bg-gray-900 border border-gray-800 rounded-xl overflow-hidden">
         <table className="w-full">
@@ -215,7 +233,7 @@ export default function ContentLibraryPage() {
                       </span>
                     </td>
                     <td className="p-4 text-sm text-gray-500">
-                      {item.scheduledDate ? new Date(item.scheduledDate).toLocaleDateString() : item.updatedAt.split("T")[0]}
+                      {item.scheduledDate ? new Date(item.scheduledDate).toLocaleDateString() : (item.updatedAt || item.createdAt || "").split("T")[0]}
                     </td>
                     <td className="p-4 text-sm">
                       <button
@@ -304,32 +322,53 @@ export default function ContentLibraryPage() {
             )}
 
             {(selectedContent.status === "ready" || selectedContent.status === "draft") && (
-              <button
-                onClick={() => {
-                  const date = prompt("Enter date (YYYY-MM-DD):");
-                  const time = prompt("Enter time (HH:MM):");
-                  if (date && time) {
-                    handleSchedule(selectedContent.id, date, time);
-                  }
-                }}
-                className="bg-blue-600 text-white text-sm px-4 py-2 rounded-lg hover:bg-blue-500 transition-colors"
-              >
-                Schedule
-              </button>
+              scheduleModal === selectedContent.id ? (
+                <div className="flex items-center gap-2">
+                  <input
+                    type="date"
+                    value={scheduleDate}
+                    onChange={(e) => setScheduleDate(e.target.value)}
+                    className="bg-gray-800 border border-gray-700 rounded-lg px-2 py-1.5 text-sm text-white focus:outline-none focus:border-blue-500"
+                  />
+                  <input
+                    type="time"
+                    value={scheduleTime}
+                    onChange={(e) => setScheduleTime(e.target.value)}
+                    className="bg-gray-800 border border-gray-700 rounded-lg px-2 py-1.5 text-sm text-white focus:outline-none focus:border-blue-500"
+                  />
+                  <button
+                    onClick={() => {
+                      if (scheduleDate && scheduleTime) {
+                        handleSchedule(selectedContent.id, scheduleDate, scheduleTime);
+                        setScheduleModal(null);
+                        setScheduleDate("");
+                        setScheduleTime("");
+                      }
+                    }}
+                    disabled={!scheduleDate || !scheduleTime}
+                    className="bg-blue-600 text-white text-sm px-3 py-1.5 rounded-lg hover:bg-blue-500 transition-colors disabled:opacity-50"
+                  >
+                    Confirm
+                  </button>
+                  <button
+                    onClick={() => { setScheduleModal(null); setScheduleDate(""); setScheduleTime(""); }}
+                    className="text-gray-400 hover:text-gray-300 text-sm px-2"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              ) : (
+                <button
+                  onClick={() => setScheduleModal(selectedContent.id)}
+                  className="bg-blue-600 text-white text-sm px-4 py-2 rounded-lg hover:bg-blue-500 transition-colors"
+                >
+                  Schedule
+                </button>
+              )
             )}
 
             <button
-              onClick={() => router.push(`/marketing/content/${selectedContent.id}/edit`)}
-              className="bg-violet-600 text-white text-sm px-4 py-2 rounded-lg hover:bg-violet-500 transition-colors"
-            >
-              Edit
-            </button>
-
-            <button
-              onClick={() => {
-                handleCopy(selectedContent.id);
-                alert("Copied to clipboard!");
-              }}
+              onClick={() => handleCopy(selectedContent.id)}
               className="bg-gray-800 text-white text-sm px-4 py-2 rounded-lg hover:bg-gray-700 transition-colors"
             >
               Copy

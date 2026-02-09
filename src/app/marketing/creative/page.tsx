@@ -307,10 +307,14 @@ export default function CreativeRoomPage() {
   };
 
   const handleCopyContent = (piece: ContentPiece) => {
-    const text = `${piece.headline}\n\n${piece.body}\n\n${piece.hashtags.join(" ")}\n\n${piece.cta}`;
-    navigator.clipboard.writeText(text);
-    setCopyFeedback(piece.id);
-    setTimeout(() => setCopyFeedback(null), 2000);
+    const text = `${piece.headline}\n\n${piece.body}\n\n${(piece.hashtags || []).join(" ")}${piece.cta ? `\n\n${piece.cta}` : ""}`;
+    navigator.clipboard.writeText(text).then(() => {
+      setCopyFeedback(piece.id);
+      setTimeout(() => setCopyFeedback(null), 2000);
+    }).catch(() => {
+      setCopyFeedback("error");
+      setTimeout(() => setCopyFeedback(null), 3000);
+    });
   };
 
   // ============================================================
@@ -627,7 +631,7 @@ export default function CreativeRoomPage() {
                           <label className="text-xs text-gray-500 uppercase tracking-wider block mb-1.5">Hashtags</label>
                           <input
                             type="text"
-                            value={displayPiece.hashtags.join(" ")}
+                            value={(displayPiece.hashtags || []).join(" ")}
                             onChange={(e) => handleEditContent(piece.id, { hashtags: e.target.value.split(" ").filter(Boolean) })}
                             className="w-full bg-gray-800 border border-gray-700 rounded-lg p-3 text-white focus:outline-none focus:border-violet-500"
                           />
