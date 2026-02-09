@@ -27,27 +27,45 @@ export default function VideoStudioPage() {
   const [script, setScript] = useState<VideoScript | null>(null);
   const [copyFeedback, setCopyFeedback] = useState<string | null>(null);
   const [saveFeedback, setSaveFeedback] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
   const handleGenerate = useCallback(async () => {
     if (!topic.trim()) return;
     setIsGenerating(true);
-    await new Promise((r) => setTimeout(r, 2500));
-    setScript({
-      title: `${topic} — ${style} for ${platform}`,
-      hook: `Stop scrolling! Here's something about ${topic.toLowerCase()} that most people get wrong...`,
-      scenes: [
-        { sceneNumber: 1, visual: "Close-up hook shot — attention-grabbing visual", narration: `Did you know that ${topic.toLowerCase()} can completely change your business?`, duration: "5s" },
-        { sceneNumber: 2, visual: "Problem demonstration — show the pain point", narration: "Most businesses struggle with this every single day. But there's a better way.", duration: "8s" },
-        { sceneNumber: 3, visual: "Solution reveal — your product/service in action", narration: `That's where ${topic.toLowerCase()} comes in. Watch how easy this is.`, duration: "12s" },
-        { sceneNumber: 4, visual: "Social proof — results, testimonials, numbers", narration: "Our clients have seen incredible results. Here's the proof.", duration: "10s" },
-        { sceneNumber: 5, visual: "CTA — clear next step with text overlay", narration: "Ready to get started? The link is right there. Don't wait.", duration: "5s" },
-      ],
-      cta: `Follow for more ${topic.toLowerCase()} tips! Link in bio for a free consultation.`,
-      music: "Upbeat, modern — trending audio recommended for better reach",
-      totalDuration: "40s",
-    });
+    setError(null);
+
+    const settings = JSON.parse(localStorage.getItem("tmm-settings") || "{}");
+    const keyMap: Record<string, string> = {
+      Claude: settings.anthropicKey,
+      "GPT-4": settings.openaiKey,
+      Gemini: settings.geminiKey,
+      Grok: settings.grokKey,
+    };
+    const apiKey = keyMap[provider];
+
+    if (!apiKey) {
+      setError(`No API key found for ${provider}. Add it in Settings.`);
+      setIsGenerating(false);
+      return;
+    }
+
+    try {
+      const res = await fetch("/api/marketing/generate-video", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ topic, keyMessage, videoType, platform, style, provider, apiKey }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setError(data.error || "Generation failed");
+      } else {
+        setScript(data.script);
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Network error");
+    }
     setIsGenerating(false);
-  }, [topic, style, platform]);
+  }, [topic, keyMessage, videoType, platform, style, provider]);
 
   const copyToClipboard = useCallback((text: string, label: string) => {
     navigator.clipboard.writeText(text);
@@ -158,6 +176,9 @@ export default function VideoStudioPage() {
 
         {/* Output */}
         <div>
+          {error && (
+            <div className="bg-red-500/20 text-red-400 text-sm px-4 py-3 rounded-lg mb-4">{error}</div>
+          )}
           {script ? (
             <div className="bg-gray-900 border border-gray-800 rounded-xl p-6 space-y-5">
               {copyFeedback && <div className="bg-green-500/20 text-green-400 text-sm px-3 py-2 rounded-lg">{copyFeedback}</div>}

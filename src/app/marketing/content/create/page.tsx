@@ -28,21 +28,46 @@ export default function ContentCreatePage() {
   const [generated, setGenerated] = useState<GeneratedContent | null>(null);
   const [copyFeedback, setCopyFeedback] = useState<string | null>(null);
   const [saveFeedback, setSaveFeedback] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
   const handleGenerate = useCallback(async () => {
     if (!topic.trim()) return;
     setIsGenerating(true);
-    // Simulate AI generation
-    await new Promise((r) => setTimeout(r, 2000));
-    setGenerated({
-      headline: `${topic} — A ${tone} Take for ${channel}`,
-      body: `Discover why ${topic.toLowerCase()} matters for your business. Using the ${framework} framework, here's what you need to know:\n\n1. The problem your audience faces daily\n2. How your solution transforms their experience\n3. Real results from businesses like yours\n\nThis ${contentType.toLowerCase()} is crafted for ${channel} using ${provider}, optimized for maximum engagement.`,
-      hashtags: ["#marketing", "#business", `#${topic.replace(/\s+/g, "").toLowerCase()}`, "#growth", "#strategy"],
-      cta: `Ready to transform your ${topic.toLowerCase()}? Link in bio 👆`,
-      imagePrompt: `Professional marketing visual for ${topic}, ${tone.toLowerCase()} mood, ${channel} optimized, modern design, vibrant colors`,
-    });
+    setError(null);
+
+    // Get API key from settings
+    const settings = JSON.parse(localStorage.getItem("tmm-settings") || "{}");
+    const keyMap: Record<string, string> = {
+      Claude: settings.anthropicKey,
+      "GPT-4": settings.openaiKey,
+      Gemini: settings.geminiKey,
+      Grok: settings.grokKey,
+    };
+    const apiKey = keyMap[provider];
+
+    if (!apiKey) {
+      setError(`No API key found for ${provider}. Add it in Settings.`);
+      setIsGenerating(false);
+      return;
+    }
+
+    try {
+      const res = await fetch("/api/marketing/generate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ topic, keywords, channel, contentType, tone, framework, provider, apiKey }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setError(data.error || "Generation failed");
+      } else {
+        setGenerated(data.content);
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Network error");
+    }
     setIsGenerating(false);
-  }, [topic, tone, channel, framework, contentType, provider]);
+  }, [topic, keywords, channel, contentType, tone, framework, provider]);
 
   const copyToClipboard = useCallback((text: string, label: string) => {
     navigator.clipboard.writeText(text);
@@ -122,6 +147,9 @@ export default function ContentCreatePage() {
 
         {/* Output Panel */}
         <div className="space-y-4">
+          {error && (
+            <div className="bg-red-500/20 text-red-400 text-sm px-4 py-3 rounded-lg">{error}</div>
+          )}
           {generated ? (
             <div className="bg-gray-900 border border-gray-800 rounded-xl p-6 space-y-5">
               {copyFeedback && (
