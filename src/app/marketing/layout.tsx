@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useState, useEffect } from "react";
-import { brandStore, type BrandProfile } from "@/lib/store";
+import { brandStore, settingsStore, ACCENT_COLORS, type BrandProfile, type AccentColor } from "@/lib/store";
 
 const NAV_ITEMS = [
   { href: "/marketing", label: "Dashboard", icon: "📊" },
@@ -25,14 +25,30 @@ export default function MarketingLayout({
   const [brands, setBrands] = useState<BrandProfile[]>([]);
   const [activeBrand, setActiveBrand] = useState<BrandProfile | null>(null);
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+  const [accent, setAccent] = useState<AccentColor>("violet");
 
-  // Load brands and active brand on mount
+  // Load brands, active brand, and accent color on mount
   useEffect(() => {
     const allBrands = brandStore.getAll();
     setBrands(allBrands);
     const active = brandStore.getActive();
     setActiveBrand(active);
+    const s = settingsStore.get();
+    setAccent(s.accentColor || "violet");
   }, []);
+
+  // Listen for settings changes (poll every 2s for accent color changes)
+  useEffect(() => {
+    const interval = setInterval(() => {
+      const s = settingsStore.get();
+      if (s.accentColor && s.accentColor !== accent) {
+        setAccent(s.accentColor);
+      }
+    }, 2000);
+    return () => clearInterval(interval);
+  }, [accent]);
+
+  const ac = ACCENT_COLORS[accent];
 
   const handleBrandChange = (brandId: string) => {
     brandStore.setActive(brandId);
@@ -49,7 +65,7 @@ export default function MarketingLayout({
       <aside className="w-64 bg-gray-900 border-r border-gray-800 flex flex-col overflow-y-auto">
         {/* Logo Section */}
         <div className="p-6 border-b border-gray-800">
-          <h1 className="text-xl font-bold bg-gradient-to-r from-violet-400 to-fuchsia-400 bg-clip-text text-transparent">
+          <h1 className={`text-xl font-bold bg-gradient-to-r ${ac.gradient} bg-clip-text text-transparent`}>
             The Marketing Machine
           </h1>
           <p className="text-xs text-gray-500 mt-1">AI-Powered Marketing Agency</p>
@@ -98,7 +114,7 @@ export default function MarketingLayout({
                         onClick={() => handleBrandChange(brand.id)}
                         className={`w-full text-left px-3 py-2.5 text-sm transition-colors flex items-center gap-2 ${
                           activeBrand?.id === brand.id
-                            ? "bg-violet-600/30 text-violet-300 font-medium"
+                            ? `${ac.bgSubtle} ${ac.text} font-medium`
                             : "text-gray-300 hover:bg-gray-700"
                         }`}
                       >
@@ -112,7 +128,7 @@ export default function MarketingLayout({
                           ))}
                         </div>
                         <span className="flex-1">{brand.name}</span>
-                        {activeBrand?.id === brand.id && <span className="text-violet-300">✓</span>}
+                        {activeBrand?.id === brand.id && <span className={ac.text}>✓</span>}
                       </button>
                     ))}
                   </div>
@@ -136,13 +152,11 @@ export default function MarketingLayout({
                 href={item.href}
                 className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm transition-all ${
                   isActive
-                    ? item.highlight
-                      ? "bg-gradient-to-r from-violet-600/30 to-fuchsia-600/30 text-transparent bg-clip-text font-bold text-violet-300"
-                      : "bg-violet-600/20 text-violet-300 font-medium"
+                    ? `${ac.bgSubtle} ${ac.text} font-medium`
                     : "text-gray-400 hover:text-white hover:bg-gray-800"
                 }`}
               >
-                <span className={`text-base ${item.highlight && isActive ? "text-violet-400" : ""}`}>
+                <span className={`text-base ${isActive ? ac.text : ""}`}>
                   {item.icon}
                 </span>
                 <span className={item.highlight && isActive ? "font-bold" : ""}>

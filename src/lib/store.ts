@@ -517,6 +517,8 @@ export const calendarStore = {
 
 // ---- Settings Store ----
 
+export type AccentColor = "violet" | "blue" | "emerald" | "rose" | "amber" | "cyan" | "orange";
+
 export interface AppSettings {
   anthropicKey: string;
   openaiKey: string;
@@ -530,6 +532,7 @@ export interface AppSettings {
   timezone: string;
   businessName: string;
   industry: string;
+  accentColor: AccentColor;
 }
 
 export const DEFAULT_SETTINGS: AppSettings = {
@@ -545,6 +548,18 @@ export const DEFAULT_SETTINGS: AppSettings = {
   timezone: "Europe/London",
   businessName: "",
   industry: "",
+  accentColor: "violet",
+};
+
+// Accent color CSS class mappings
+export const ACCENT_COLORS: Record<AccentColor, { label: string; bg: string; bgHover: string; bgSubtle: string; text: string; border: string; ring: string; gradient: string; swatch: string }> = {
+  violet: { label: "Violet", bg: "bg-violet-600", bgHover: "hover:bg-violet-700", bgSubtle: "bg-violet-600/20", text: "text-violet-400", border: "border-violet-500", ring: "focus:ring-violet-500", gradient: "from-violet-400 to-fuchsia-400", swatch: "#8b5cf6" },
+  blue: { label: "Blue", bg: "bg-blue-600", bgHover: "hover:bg-blue-700", bgSubtle: "bg-blue-600/20", text: "text-blue-400", border: "border-blue-500", ring: "focus:ring-blue-500", gradient: "from-blue-400 to-cyan-400", swatch: "#3b82f6" },
+  emerald: { label: "Emerald", bg: "bg-emerald-600", bgHover: "hover:bg-emerald-700", bgSubtle: "bg-emerald-600/20", text: "text-emerald-400", border: "border-emerald-500", ring: "focus:ring-emerald-500", gradient: "from-emerald-400 to-teal-400", swatch: "#10b981" },
+  rose: { label: "Rose", bg: "bg-rose-600", bgHover: "hover:bg-rose-700", bgSubtle: "bg-rose-600/20", text: "text-rose-400", border: "border-rose-500", ring: "focus:ring-rose-500", gradient: "from-rose-400 to-pink-400", swatch: "#f43f5e" },
+  amber: { label: "Amber", bg: "bg-amber-600", bgHover: "hover:bg-amber-700", bgSubtle: "bg-amber-600/20", text: "text-amber-400", border: "border-amber-500", ring: "focus:ring-amber-500", gradient: "from-amber-400 to-yellow-400", swatch: "#f59e0b" },
+  cyan: { label: "Cyan", bg: "bg-cyan-600", bgHover: "hover:bg-cyan-700", bgSubtle: "bg-cyan-600/20", text: "text-cyan-400", border: "border-cyan-500", ring: "focus:ring-cyan-500", gradient: "from-cyan-400 to-sky-400", swatch: "#06b6d4" },
+  orange: { label: "Orange", bg: "bg-orange-600", bgHover: "hover:bg-orange-700", bgSubtle: "bg-orange-600/20", text: "text-orange-400", border: "border-orange-500", ring: "focus:ring-orange-500", gradient: "from-orange-400 to-red-400", swatch: "#ea580c" },
 };
 
 export const settingsStore = {

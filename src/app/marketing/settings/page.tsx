@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import { settingsStore, contentStore, contentSetStore, conceptStore, type AppSettings, DEFAULT_SETTINGS } from "@/lib/store";
+import { settingsStore, contentStore, contentSetStore, conceptStore, ACCENT_COLORS, type AppSettings, type AccentColor, DEFAULT_SETTINGS } from "@/lib/store";
 
 export default function SettingsPage() {
   const [settings, setSettings] = useState<AppSettings>(DEFAULT_SETTINGS);
@@ -277,6 +277,39 @@ export default function SettingsPage() {
                 </select>
               </div>
             )}
+          </div>
+        </div>
+
+        {/* UI Appearance */}
+        <div className="bg-gray-900 border border-gray-800 rounded-xl p-6 space-y-4">
+          <h2 className="font-semibold text-lg text-white">Appearance</h2>
+          <p className="text-sm text-gray-500">Choose an accent colour for the UI</p>
+          <div className="flex flex-wrap gap-3">
+            {(Object.keys(ACCENT_COLORS) as AccentColor[]).map((colorKey) => {
+              const c = ACCENT_COLORS[colorKey];
+              const isActive = settings.accentColor === colorKey;
+              return (
+                <button
+                  key={colorKey}
+                  onClick={() => updateSetting("accentColor", colorKey)}
+                  className={`flex items-center gap-2.5 px-4 py-2.5 rounded-lg border-2 transition-all text-sm font-medium ${
+                    isActive
+                      ? `border-white bg-gray-800 text-white`
+                      : "border-gray-700 bg-gray-800 text-gray-400 hover:border-gray-600 hover:text-gray-300"
+                  }`}
+                >
+                  <div
+                    className={`w-5 h-5 rounded-full ${isActive ? "ring-2 ring-offset-1 ring-offset-gray-800" : ""}`}
+                    style={{
+                      backgroundColor: c.swatch,
+                      ...(isActive ? { boxShadow: `0 0 0 2px #1f2937, 0 0 0 4px ${c.swatch}` } : {}),
+                    }}
+                  />
+                  {c.label}
+                  {isActive && <span className="text-xs">✓</span>}
+                </button>
+              );
+            })}
           </div>
         </div>
 
