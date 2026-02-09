@@ -114,6 +114,34 @@ export interface CalendarEvent {
   status: "scheduled" | "published";
 }
 
+export interface ConnectedAccount {
+  id: string;
+  platform: "instagram" | "facebook" | "twitter" | "linkedin" | "tiktok";
+  username: string;
+  displayName: string;
+  profileImage: string;
+  accessToken: string;
+  refreshToken: string;
+  tokenExpiry: string;
+  scopes: string[];
+  connectedAt: string;
+  status: "active" | "expired" | "revoked";
+}
+
+export interface PublishJob {
+  id: string;
+  brandId: string;
+  contentId: string;
+  accountId: string;
+  platform: string;
+  status: "pending" | "publishing" | "published" | "failed";
+  scheduledAt: string | null;
+  publishedAt: string | null;
+  postUrl: string | null;
+  error: string | null;
+  createdAt: string;
+}
+
 // ---- Storage Keys ----
 
 const KEYS = {
@@ -126,6 +154,8 @@ const KEYS = {
   preferences: "tmm-preferences",
   calendar: "tmm-calendar",
   settings: "tmm-settings",
+  accounts: "tmm-connected-accounts",
+  publishJobs: "tmm-publish-jobs",
 } as const;
 
 // ---- Generic Helpers ----
@@ -512,6 +542,95 @@ export const calendarStore = {
 
   deleteByContent(contentId: string): void {
     setItems(KEYS.calendar, this.getAll().filter((e) => e.contentId !== contentId));
+  },
+};
+
+// ---- Connected Accounts Store ----
+
+export const accountStore = {
+  getAll(): ConnectedAccount[] {
+    return getItems<ConnectedAccount>(KEYS.accounts);
+  },
+
+  getByPlatform(platform: ConnectedAccount["platform"]): ConnectedAccount | undefined {
+    return this.getAll().find((a) => a.platform === platform && a.status === "active");
+  },
+
+  getById(id: string): ConnectedAccount | undefined {
+    return this.getAll().find((a) => a.id === id);
+  },
+
+  getActive(): ConnectedAccount[] {
+    return this.getAll().filter((a) => a.status === "active");
+  },
+
+  connect(account: Omit<ConnectedAccount, "id" | "connectedAt">): ConnectedAccount {
+    // Remove any existing account for this platform first
+    const items = this.getAll().filter((a) => a.platform !== account.platform);
+    const newAccount: ConnectedAccount = {
+      ...account,
+      id: generateId(),
+      connectedAt: new Date().toISOString(),
+    };
+    items.push(newAccount);
+    setItems(KEYS.accounts, items);
+    return newAccount;
+  },
+
+  disconnect(id: string): void {
+    const items = this.getAll();
+    const index = items.findIndex((a) => a.id === id);
+    if (index === -1) return;
+    items[index] = { ...items[index], status: "revoked" };
+    setItems(KEYS.accounts, items);
+  },
+
+  remove(id: string): void {
+    setItems(KEYS.accounts, this.getAll().filter((a) => a.id !== id));
+  },
+
+  updateToken(id: string, accessToken: string, refreshToken: string, tokenExpiry: string): void {
+    const items = this.getAll();
+    const index = items.findIndex((a) => a.id === id);
+    if (index === -1) return;
+    items[index] = { ...items[index], accessToken, refreshToken, tokenExpiry, status: "active" };
+    setItems(KEYS.accounts, items);
+  },
+};
+
+// ---- Publish Jobs Store ----
+
+export const publishStore = {
+  getAll(): PublishJob[] {
+    return getItems<PublishJob>(KEYS.publishJobs);
+  },
+
+  getByBrand(brandId: string): PublishJob[] {
+    return this.getAll().filter((j) => j.brandId === brandId);
+  },
+
+  getByContent(contentId: string): PublishJob[] {
+    return this.getAll().filter((j) => j.contentId === contentId);
+  },
+
+  create(job: Omit<PublishJob, "id" | "createdAt">): PublishJob {
+    const newJob: PublishJob = { ...job, id: generateId(), createdAt: new Date().toISOString() };
+    const items = this.getAll();
+    items.push(newJob);
+    setItems(KEYS.publishJobs, items);
+    return newJob;
+  },
+
+  updateStatus(id: string, status: PublishJob["status"], extras?: { postUrl?: string; error?: string; publishedAt?: string }): void {
+    const items = this.getAll();
+    const index = items.findIndex((j) => j.id === id);
+    if (index === -1) return;
+    items[index] = { ...items[index], status, ...extras };
+    setItems(KEYS.publishJobs, items);
+  },
+
+  getPending(): PublishJob[] {
+    return this.getAll().filter((j) => j.status === "pending" && j.scheduledAt);
   },
 };
 

@@ -12,6 +12,7 @@ const NAV_ITEMS = [
   { href: "/marketing/content", label: "Content Library", icon: "📁" },
   { href: "/marketing/calendar", label: "Calendar", icon: "📅" },
   { href: "/marketing/repurpose", label: "Repurpose", icon: "♻️" },
+  { href: "/marketing/accounts", label: "Accounts", icon: "🔗" },
   { href: "/marketing/brands", label: "Brands", icon: "🏷️" },
   { href: "/marketing/settings", label: "Settings", icon: "⚙️" },
 ];
