@@ -6,9 +6,10 @@ import { OAUTH_PLATFORMS, type OAuthPlatform } from "@/lib/oauth-config";
 
 export default function AccountsPage() {
   const [accounts, setAccounts] = useState<ConnectedAccount[]>([]);
-  const [connecting, setConnecting] = useState<string | null>(null);
   const [feedback, setFeedback] = useState<{ type: "success" | "error"; message: string } | null>(null);
-  const [testingId, setTestingId] = useState<string | null>(null);
+  const [connectingPlatform, setConnectingPlatform] = useState<OAuthPlatform | null>(null);
+  const [usernameInput, setUsernameInput] = useState("");
+  const [displayNameInput, setDisplayNameInput] = useState("");
 
   useEffect(() => {
     setAccounts(accountStore.getAll());
@@ -23,111 +24,36 @@ export default function AccountsPage() {
     return accounts.find((a) => a.platform === platformId && a.status === "active");
   };
 
-  const handleConnect = useCallback((platform: OAuthPlatform) => {
-    setConnecting(platform.id);
+  const openConnectModal = (platform: OAuthPlatform) => {
+    setConnectingPlatform(platform);
+    setUsernameInput("");
+    setDisplayNameInput("");
+  };
 
-    // Build the OAuth redirect URL
-    const baseUrl = window.location.origin;
-    const redirectUri = `${baseUrl}/marketing/accounts/callback`;
-    const state = JSON.stringify({ platform: platform.id, ts: Date.now() });
+  const handleConnect = useCallback(() => {
+    if (!connectingPlatform || !usernameInput.trim()) return;
 
-    const params = new URLSearchParams({
-      client_id: "", // Will be set from env vars on the server
-      redirect_uri: redirectUri,
-      response_type: "code",
-      scope: platform.scopes.join(" "),
-      state: btoa(state),
+    accountStore.connect({
+      platform: connectingPlatform.id as ConnectedAccount["platform"],
+      username: usernameInput.startsWith("@") ? usernameInput : `@${usernameInput}`,
+      displayName: displayNameInput.trim() || usernameInput.trim(),
+      profileImage: "",
+      accessToken: "simulated-token",
+      refreshToken: "",
+      tokenExpiry: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString(),
+      scopes: connectingPlatform.scopes,
+      status: "active",
     });
 
-    // For platforms that need PKCE
-    if (platform.id === "twitter") {
-      params.set("code_challenge", "challenge");
-      params.set("code_challenge_method", "plain");
-    }
-
-    const authUrl = `${platform.authUrl}?${params.toString()}`;
-
-    // Open popup window for OAuth
-    const width = 600;
-    const height = 700;
-    const left = window.screenX + (window.innerWidth - width) / 2;
-    const top = window.screenY + (window.innerHeight - height) / 2;
-
-    const popup = window.open(
-      authUrl,
-      `connect_${platform.id}`,
-      `width=${width},height=${height},left=${left},top=${top},toolbar=no,menubar=no`
-    );
-
-    // Listen for the callback message
-    const handleMessage = (event: MessageEvent) => {
-      if (event.data?.type === "oauth_callback" && event.data?.platform === platform.id) {
-        window.removeEventListener("message", handleMessage);
-        popup?.close();
-
-        if (event.data.success) {
-          // Store the connected account
-          accountStore.connect({
-            platform: platform.id as ConnectedAccount["platform"],
-            username: event.data.username || `@${platform.id}_user`,
-            displayName: event.data.displayName || platform.name + " Account",
-            profileImage: event.data.profileImage || "",
-            accessToken: event.data.accessToken || "",
-            refreshToken: event.data.refreshToken || "",
-            tokenExpiry: event.data.tokenExpiry || new Date(Date.now() + 60 * 24 * 60 * 60 * 1000).toISOString(),
-            scopes: platform.scopes,
-            status: "active",
-          });
-          setAccounts(accountStore.getAll());
-          showFeedback("success", `${platform.name} connected successfully!`);
-        } else {
-          showFeedback("error", event.data.error || `Failed to connect ${platform.name}`);
-        }
-        setConnecting(null);
-      }
-    };
-
-    window.addEventListener("message", handleMessage);
-
-    // Fallback: If popup is closed manually
-    const checkPopup = setInterval(() => {
-      if (popup?.closed) {
-        clearInterval(checkPopup);
-        window.removeEventListener("message", handleMessage);
-        setConnecting(null);
-      }
-    }, 1000);
-
-    // Cleanup after 5 minutes max
-    setTimeout(() => {
-      clearInterval(checkPopup);
-      window.removeEventListener("message", handleMessage);
-      setConnecting(null);
-    }, 300000);
-  }, []);
+    setAccounts(accountStore.getAll());
+    showFeedback("success", `${connectingPlatform.name} connected!`);
+    setConnectingPlatform(null);
+  }, [connectingPlatform, usernameInput, displayNameInput]);
 
   const handleDisconnect = useCallback((account: ConnectedAccount, platformName: string) => {
     accountStore.remove(account.id);
     setAccounts(accountStore.getAll());
     showFeedback("success", `${platformName} disconnected`);
-  }, []);
-
-  const handleTestConnection = useCallback(async (account: ConnectedAccount, platformName: string) => {
-    setTestingId(account.id);
-
-    // Simulate testing the token
-    await new Promise((r) => setTimeout(r, 1500));
-
-    // Check if token is still "valid" (not expired)
-    const isExpired = account.tokenExpiry && new Date(account.tokenExpiry) < new Date();
-    if (isExpired) {
-      accountStore.disconnect(account.id);
-      setAccounts(accountStore.getAll());
-      showFeedback("error", `${platformName} token expired. Please reconnect.`);
-    } else {
-      showFeedback("success", `${platformName} connection is active!`);
-    }
-    setTestingId(null);
   }, []);
 
   return (
@@ -136,7 +62,7 @@ export default function AccountsPage() {
       <div>
         <h1 className="text-3xl font-bold text-white">Connected Accounts</h1>
         <p className="text-gray-400 mt-1">
-          Connect your social media accounts to publish content directly from BeMe
+          Connect your social media accounts to publish content directly
         </p>
       </div>
 
@@ -153,12 +79,19 @@ export default function AccountsPage() {
         </div>
       )}
 
+      {/* How It Works */}
+      <div className="bg-violet-600/10 border border-violet-500/30 rounded-lg p-4">
+        <p className="text-violet-300 text-sm font-medium mb-1">How publishing works</p>
+        <p className="text-gray-400 text-sm">
+          When you publish, your content is copied to your clipboard and the platform opens in a new tab — just paste and post.
+          Connect your accounts below so you can pick which ones to publish to.
+        </p>
+      </div>
+
       {/* Platform Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
         {OAUTH_PLATFORMS.map((platform) => {
           const connected = getConnectedAccount(platform.id);
-          const isConnecting = connecting === platform.id;
-          const isTesting = testingId === connected?.id;
 
           return (
             <div
@@ -187,18 +120,9 @@ export default function AccountsPage() {
               <div className="p-5">
                 {connected ? (
                   <div className="space-y-4">
-                    {/* Profile Info */}
                     <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 rounded-full bg-gray-800 flex items-center justify-center text-lg overflow-hidden">
-                        {connected.profileImage ? (
-                          <img
-                            src={connected.profileImage}
-                            alt={connected.displayName}
-                            className="w-full h-full object-cover"
-                          />
-                        ) : (
-                          <span>{platform.icon}</span>
-                        )}
+                      <div className="w-10 h-10 rounded-full bg-gray-800 flex items-center justify-center text-lg">
+                        <span>{platform.icon}</span>
                       </div>
                       <div className="flex-1 min-w-0">
                         <p className="text-white font-medium text-sm truncate">
@@ -210,23 +134,11 @@ export default function AccountsPage() {
                       </div>
                     </div>
 
-                    {/* Connection Info */}
-                    <div className="text-xs text-gray-500 space-y-1">
+                    <div className="text-xs text-gray-500">
                       <p>Connected {new Date(connected.connectedAt).toLocaleDateString()}</p>
-                      <p>
-                        Permissions: {connected.scopes.length} scope{connected.scopes.length !== 1 ? "s" : ""}
-                      </p>
                     </div>
 
-                    {/* Action Buttons */}
                     <div className="flex gap-2 pt-2 border-t border-gray-800">
-                      <button
-                        onClick={() => handleTestConnection(connected, platform.name)}
-                        disabled={isTesting}
-                        className="flex-1 bg-gray-800 text-gray-300 text-xs font-medium py-2 rounded-lg hover:bg-gray-700 transition-colors disabled:opacity-50"
-                      >
-                        {isTesting ? "Testing..." : "Test Connection"}
-                      </button>
                       <button
                         onClick={() => handleDisconnect(connected, platform.name)}
                         className="flex-1 bg-red-600/20 text-red-400 text-xs font-medium py-2 rounded-lg hover:bg-red-600/30 transition-colors"
@@ -238,54 +150,15 @@ export default function AccountsPage() {
                 ) : (
                   <div className="space-y-3">
                     <p className="text-gray-500 text-sm">
-                      Not connected yet. Click below to sign in with {platform.name} and authorize BeMe to post on your behalf.
+                      Not connected. Add your {platform.name} account so you can publish to it.
                     </p>
 
                     <button
-                      onClick={() => handleConnect(platform)}
-                      disabled={isConnecting}
-                      className={`w-full ${platform.bgColor} text-white font-medium py-2.5 rounded-lg transition-all text-sm disabled:opacity-50 disabled:cursor-not-allowed hover:opacity-90`}
+                      onClick={() => openConnectModal(platform)}
+                      className={`w-full ${platform.bgColor} text-white font-medium py-2.5 rounded-lg transition-all text-sm hover:opacity-90`}
                     >
-                      {isConnecting ? (
-                        <span className="flex items-center justify-center gap-2">
-                          <svg
-                            className="animate-spin h-4 w-4"
-                            viewBox="0 0 24 24"
-                            fill="none"
-                          >
-                            <circle
-                              className="opacity-25"
-                              cx="12"
-                              cy="12"
-                              r="10"
-                              stroke="currentColor"
-                              strokeWidth="4"
-                            />
-                            <path
-                              className="opacity-75"
-                              fill="currentColor"
-                              d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
-                            />
-                          </svg>
-                          Connecting...
-                        </span>
-                      ) : (
-                        `Connect ${platform.name}`
-                      )}
+                      Connect {platform.name}
                     </button>
-
-                    <p className="text-gray-600 text-xs text-center">
-                      Requires a{" "}
-                      <a
-                        href={platform.setupUrl}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="text-violet-400 hover:text-violet-300 underline"
-                      >
-                        developer app
-                      </a>{" "}
-                      to be configured
-                    </p>
                   </div>
                 )}
               </div>
@@ -294,55 +167,62 @@ export default function AccountsPage() {
         })}
       </div>
 
-      {/* Setup Guide */}
-      <div className="bg-gray-900 border border-gray-800 rounded-xl p-6 space-y-4">
-        <h2 className="text-lg font-semibold text-white">Setup Guide</h2>
-        <p className="text-gray-400 text-sm">
-          To connect each platform, you need to create a developer app and add your credentials to BeMe.
-          Each platform has its own developer portal where you register your app and get API keys.
-        </p>
-
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-          {OAUTH_PLATFORMS.map((platform) => (
-            <div
-              key={platform.id}
-              className="bg-gray-800/50 rounded-lg p-3 flex items-center gap-3"
-            >
-              <span className="text-xl">{platform.icon}</span>
-              <div className="flex-1 min-w-0">
-                <p className="text-white text-sm font-medium">{platform.name}</p>
-                <p className="text-gray-500 text-xs truncate">
-                  Env: {platform.clientIdEnvKey}
-                </p>
+      {/* Connect Modal */}
+      {connectingPlatform && (
+        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4">
+          <div className="bg-gray-900 border border-gray-700 rounded-xl max-w-md w-full">
+            <div className={`${connectingPlatform.bgColor} px-6 py-4 rounded-t-xl flex items-center gap-3`}>
+              <span className="text-2xl">{connectingPlatform.icon}</span>
+              <div>
+                <h3 className="text-white font-semibold">Connect {connectingPlatform.name}</h3>
+                <p className="text-white/70 text-xs">Add your account details</p>
               </div>
-              <a
-                href={platform.setupUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-violet-400 hover:text-violet-300 text-xs font-medium"
-              >
-                Setup
-              </a>
             </div>
-          ))}
-        </div>
 
-        <div className="bg-violet-600/10 border border-violet-500/30 rounded-lg p-4 mt-4">
-          <p className="text-violet-300 text-sm font-medium mb-2">Environment Variables Required</p>
-          <div className="bg-gray-950 rounded-lg p-3 font-mono text-xs text-gray-400 space-y-1">
-            {OAUTH_PLATFORMS.map((p) => (
-              <div key={p.id}>
-                <span className="text-gray-600"># {p.name}</span>
-                <br />
-                <span className="text-violet-400">{p.clientIdEnvKey}</span>=your_client_id
-                <br />
-                <span className="text-violet-400">{p.clientSecretEnvKey}</span>=your_client_secret
-                <br />
+            <div className="p-6 space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-300 mb-1.5">Username</label>
+                <input
+                  type="text"
+                  value={usernameInput}
+                  onChange={(e) => setUsernameInput(e.target.value)}
+                  placeholder={`e.g. @your${connectingPlatform.id}handle`}
+                  className="w-full px-4 py-2.5 bg-gray-800 border border-gray-700 text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-violet-600 placeholder-gray-500"
+                  onKeyDown={(e) => { if (e.key === "Enter") handleConnect(); }}
+                  autoFocus
+                />
               </div>
-            ))}
+              <div>
+                <label className="block text-sm font-medium text-gray-300 mb-1.5">Display Name <span className="text-gray-500">(optional)</span></label>
+                <input
+                  type="text"
+                  value={displayNameInput}
+                  onChange={(e) => setDisplayNameInput(e.target.value)}
+                  placeholder="Your name or business name"
+                  className="w-full px-4 py-2.5 bg-gray-800 border border-gray-700 text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-violet-600 placeholder-gray-500"
+                  onKeyDown={(e) => { if (e.key === "Enter") handleConnect(); }}
+                />
+              </div>
+            </div>
+
+            <div className="px-6 pb-6 flex gap-3">
+              <button
+                onClick={() => setConnectingPlatform(null)}
+                className="flex-1 bg-gray-800 text-gray-300 font-medium py-2.5 rounded-lg hover:bg-gray-700 transition-colors text-sm"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleConnect}
+                disabled={!usernameInput.trim()}
+                className={`flex-1 ${connectingPlatform.bgColor} text-white font-medium py-2.5 rounded-lg transition-all text-sm hover:opacity-90 disabled:opacity-40 disabled:cursor-not-allowed`}
+              >
+                Connect
+              </button>
+            </div>
           </div>
         </div>
-      </div>
+      )}
     </div>
   );
 }

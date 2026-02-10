@@ -112,101 +112,74 @@ export default function ContentLibraryPage() {
     setPublishing(true);
     setPublishFeedback(null);
 
-    let successCount = 0;
-    let failCount = 0;
+    // Build the text content for clipboard
+    const hashtagStr = item.hashtags && item.hashtags.length > 0
+      ? "\n\n" + item.hashtags.map((t: string) => t.startsWith("#") ? t : `#${t}`).join(" ")
+      : "";
+    const textContent = `${item.body}${hashtagStr}`;
 
+    // Copy to clipboard
+    try {
+      await navigator.clipboard.writeText(textContent);
+    } catch {
+      // Fallback for older browsers
+      const textarea = document.createElement("textarea");
+      textarea.value = textContent;
+      document.body.appendChild(textarea);
+      textarea.select();
+      document.execCommand("copy");
+      document.body.removeChild(textarea);
+    }
+
+    // Platform share URLs
+    const platformUrls: Record<string, string> = {
+      instagram: "https://www.instagram.com/",
+      facebook: `https://www.facebook.com/sharer/sharer.php?quote=${encodeURIComponent(textContent)}`,
+      twitter: `https://twitter.com/intent/tweet?text=${encodeURIComponent(textContent)}`,
+      linkedin: `https://www.linkedin.com/sharing/share-offsite/?url=${encodeURIComponent(activeBrand.website || "")}`,
+      tiktok: "https://www.tiktok.com/upload",
+    };
+
+    // Open platform tabs and create publish records
+    let openedCount = 0;
     for (const accountId of selectedAccounts) {
       const account = connectedAccounts.find((a) => a.id === accountId);
       if (!account) continue;
 
-      try {
-        const scheduleAt = publishMode === "schedule" && publishDate && publishTime
-          ? new Date(`${publishDate}T${publishTime}`).toISOString()
-          : null;
-
-        const response = await fetch("/api/marketing/publish", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            platform: account.platform,
-            content: {
-              body: item.body,
-              hashtags: item.hashtags || [],
-              headline: item.headline,
-              cta: item.cta,
-            },
-            accessToken: account.accessToken,
-            scheduleAt,
-          }),
-        });
-
-        const data = await response.json();
-
-        // Create publish job record
-        publishStore.create({
-          brandId: activeBrand.id,
-          contentId: item.id,
-          accountId: account.id,
-          platform: account.platform,
-          status: data.success ? (scheduleAt ? "pending" : "published") : "failed",
-          scheduledAt: scheduleAt,
-          publishedAt: data.published ? new Date().toISOString() : null,
-          postUrl: data.postUrl || null,
-          error: data.error || null,
-        });
-
-        if (data.success) {
-          successCount++;
-        } else {
-          failCount++;
-        }
-      } catch {
-        failCount++;
-        publishStore.create({
-          brandId: activeBrand.id,
-          contentId: item.id,
-          accountId: account.id,
-          platform: account.platform,
-          status: "failed",
-          scheduledAt: null,
-          publishedAt: null,
-          postUrl: null,
-          error: "Network error",
-        });
+      const url = platformUrls[account.platform] || "";
+      if (url) {
+        window.open(url, `_blank_${account.platform}`);
+        openedCount++;
       }
+
+      publishStore.create({
+        brandId: activeBrand.id,
+        contentId: item.id,
+        accountId: account.id,
+        platform: account.platform,
+        status: "published",
+        scheduledAt: null,
+        publishedAt: new Date().toISOString(),
+        postUrl: null,
+        error: null,
+      });
     }
 
     // Update content status
-    if (successCount > 0) {
-      const newStatus = publishMode === "schedule" ? "scheduled" : "published";
-      contentStore.update(item.id, {
-        status: newStatus as ContentPiece["status"],
-        ...(publishMode === "schedule" ? { scheduledDate: publishDate, scheduledTime: publishTime } : {}),
-      });
-      setContent(content.map((c) =>
-        c.id === item.id
-          ? { ...c, status: newStatus as ContentPiece["status"], ...(publishMode === "schedule" ? { scheduledDate: publishDate, scheduledTime: publishTime } : {}) }
-          : c
-      ));
-    }
+    contentStore.update(item.id, { status: "published" as ContentPiece["status"] });
+    setContent(content.map((c) =>
+      c.id === item.id ? { ...c, status: "published" as ContentPiece["status"] } : c
+    ));
 
     setPublishing(false);
     setPublishModal(null);
 
-    if (failCount === 0) {
-      setPublishFeedback({
-        type: "success",
-        message: publishMode === "schedule"
-          ? `Scheduled to ${successCount} account${successCount > 1 ? "s" : ""}!`
-          : `Published to ${successCount} account${successCount > 1 ? "s" : ""}!`,
-      });
-    } else if (successCount > 0) {
-      setPublishFeedback({ type: "error", message: `${successCount} succeeded, ${failCount} failed` });
-    } else {
-      setPublishFeedback({ type: "error", message: "Publishing failed. Check your account connections." });
-    }
-    setTimeout(() => setPublishFeedback(null), 4000);
-  }, [content, publishModal, selectedAccounts, publishMode, publishDate, publishTime, activeBrand, connectedAccounts]);
+    setPublishFeedback({
+      type: "success",
+      message: `Content copied to clipboard! Opened ${openedCount} platform${openedCount > 1 ? "s" : ""} — just paste and post.`,
+    });
+    setTimeout(() => setPublishFeedback(null), 5000);
+  }, [content, publishModal, selectedAccounts, activeBrand, connectedAccounts]);
 
   const selectedContent = content.find((c) => c.id === selectedId);
   const platformSpec = selectedContent ? getPlatformByName(selectedContent.platform) : null;
