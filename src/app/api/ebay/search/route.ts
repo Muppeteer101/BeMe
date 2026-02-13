@@ -7,6 +7,7 @@ interface SearchRequestBody {
     year?: number;
     make?: string;
     model?: string;
+    variant?: string;
   };
   assessmentId: string;
 }
@@ -15,7 +16,7 @@ interface SearchRequestBody {
 // In production, integrate with eBay Browse API
 function generateMockResults(partName: string, vehicleInfo?: SearchRequestBody['vehicleInfo']): EbayPart[] {
   const vehicleDesc = vehicleInfo
-    ? `${vehicleInfo.year || ''} ${vehicleInfo.make || ''} ${vehicleInfo.model || ''}`.trim()
+    ? `${vehicleInfo.year || ''} ${vehicleInfo.make || ''} ${vehicleInfo.model || ''} ${vehicleInfo.variant || ''}`.trim()
     : '';
 
   const conditions = ['New', 'Certified Refurbished', 'Used - Like New', 'Used - Good'];
@@ -101,6 +102,7 @@ export async function POST(request: NextRequest) {
       if (vehicleInfo.year) searchParts.push(vehicleInfo.year.toString());
       if (vehicleInfo.make) searchParts.push(vehicleInfo.make);
       if (vehicleInfo.model) searchParts.push(vehicleInfo.model);
+      if (vehicleInfo.variant) searchParts.push(vehicleInfo.variant);
     }
     const searchQuery = searchParts.join(' ');
 

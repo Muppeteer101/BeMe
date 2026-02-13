@@ -77,6 +77,7 @@ export interface DamageAssessment {
     year?: number;
     make?: string;
     model?: string;
+    variant?: string;
     detectedFromImage: boolean;
   };
   summary: AssessmentSummary;
@@ -95,6 +96,7 @@ export interface AssessmentRequest {
     year?: number;
     make?: string;
     model?: string;
+    variant?: string;
   };
 }
 

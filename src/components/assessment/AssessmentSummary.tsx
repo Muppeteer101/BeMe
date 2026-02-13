@@ -44,7 +44,7 @@ export function AssessmentSummaryCard({ assessment }: AssessmentSummaryProps) {
               <h2 className="text-xl font-bold text-gray-900">Damage Assessment</h2>
               {vehicleInfo.make && (
                 <p className="text-sm text-gray-600">
-                  {vehicleInfo.year} {vehicleInfo.make} {vehicleInfo.model}
+                  {vehicleInfo.year} {vehicleInfo.make} {vehicleInfo.model} {vehicleInfo.variant}
                 </p>
               )}
             </div>

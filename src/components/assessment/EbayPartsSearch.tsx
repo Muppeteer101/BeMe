@@ -12,6 +12,7 @@ interface EbayPartsSearchProps {
     year?: number;
     make?: string;
     model?: string;
+    variant?: string;
   };
   hasEbayUpgrade: boolean;
   onUpgrade: () => void;

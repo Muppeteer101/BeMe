@@ -26,6 +26,7 @@ Always respond with a valid JSON object matching this exact structure:
     "year": number or null,
     "make": string or null,
     "model": string or null,
+    "variant": string or null (trim level, e.g. "SE", "XLE", "Sport", "GT"),
     "detectedFromImage": boolean
   },
   "summary": {
@@ -94,6 +95,7 @@ interface AssessmentRequestBody {
     year?: number;
     make?: string;
     model?: string;
+    variant?: string;
   };
 }
 
@@ -122,11 +124,12 @@ export async function POST(request: NextRequest) {
     // Build the user message
     let userPrompt = 'Please analyze these images of vehicle damage and provide a comprehensive assessment.';
 
-    if (vehicleInfo && (vehicleInfo.year || vehicleInfo.make || vehicleInfo.model)) {
+    if (vehicleInfo && (vehicleInfo.year || vehicleInfo.make || vehicleInfo.model || vehicleInfo.variant)) {
       userPrompt += `\n\nVehicle information provided by the user:`;
       if (vehicleInfo.year) userPrompt += `\n- Year: ${vehicleInfo.year}`;
       if (vehicleInfo.make) userPrompt += `\n- Make: ${vehicleInfo.make}`;
       if (vehicleInfo.model) userPrompt += `\n- Model: ${vehicleInfo.model}`;
+      if (vehicleInfo.variant) userPrompt += `\n- Variant/Trim: ${vehicleInfo.variant}`;
     }
 
     userPrompt += '\n\nProvide your assessment as a JSON object following the exact structure specified.';

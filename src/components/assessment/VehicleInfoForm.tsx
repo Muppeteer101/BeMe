@@ -1,12 +1,13 @@
 'use client';
 
 import { useState } from 'react';
-import { Car, Calendar, Factory } from 'lucide-react';
+import { Car, Calendar, Factory, Tag } from 'lucide-react';
 
 interface VehicleInfo {
   year?: number;
   make?: string;
   model?: string;
+  variant?: string;
 }
 
 interface VehicleInfoFormProps {
@@ -26,7 +27,7 @@ const popularMakes = [
 
 export function VehicleInfoForm({ vehicleInfo, onVehicleInfoChange }: VehicleInfoFormProps) {
   const [showOptional, setShowOptional] = useState(
-    !!(vehicleInfo.year || vehicleInfo.make || vehicleInfo.model)
+    !!(vehicleInfo.year || vehicleInfo.make || vehicleInfo.model || vehicleInfo.variant)
   );
 
   const handleChange = (field: keyof VehicleInfo, value: string | number) => {
@@ -53,7 +54,7 @@ export function VehicleInfoForm({ vehicleInfo, onVehicleInfoChange }: VehicleInf
       </div>
 
       {showOptional && (
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 p-4 bg-gray-50 rounded-lg">
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4 p-4 bg-gray-50 rounded-lg">
           {/* Year */}
           <div>
             <label className="flex items-center text-sm font-medium text-gray-700 mb-1.5">
@@ -105,6 +106,21 @@ export function VehicleInfoForm({ vehicleInfo, onVehicleInfoChange }: VehicleInf
               value={vehicleInfo.model || ''}
               onChange={(e) => handleChange('model', e.target.value)}
               placeholder="e.g., Camry, Civic"
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+            />
+          </div>
+
+          {/* Variant / Trim */}
+          <div>
+            <label className="flex items-center text-sm font-medium text-gray-700 mb-1.5">
+              <Tag className="w-4 h-4 mr-1.5" />
+              Variant / Trim
+            </label>
+            <input
+              type="text"
+              value={vehicleInfo.variant || ''}
+              onChange={(e) => handleChange('variant', e.target.value)}
+              placeholder="e.g., SE, XLE, Sport, GT"
               className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
             />
           </div>

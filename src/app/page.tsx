@@ -21,6 +21,7 @@ interface VehicleInfo {
   year?: number;
   make?: string;
   model?: string;
+  variant?: string;
 }
 
 export default function HomePage() {
